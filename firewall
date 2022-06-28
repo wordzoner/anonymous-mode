@@ -1,0 +1,274 @@
+#!/bin/bash
+
+[ $EUID != 0 ] && echo run as root ! && exit 1
+
+type tor || exit 10
+[ ! -e /usr/share/dict/words ] && echo apt install wamerican && exit 11
+
+PATH='/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+RANDOM_WORDS=$(sed -n ${RANDOM}p /usr/share/dict/words | sed -r s/[^a-zA-Z]//g)
+SP='255.255.255.255/32 240.0.0.0/4 233.252.0.0/24 224.0.0.0/4 203.0.113.0/24 198.51.100.0/24 198.18.0.0/15 192.168.0.0/16 192.88.99.0/24 192.0.2.0/24 192.0.0.0/24 172.16.0.0/12 169.254.0.0/16 127.0.0.0/8 100.64.0.0/10 10.0.0.0/8 0.0.0.0/8'
+
+stop() {
+  iptables -t nat -F
+
+  echo ---
+  iptables -t nat -nvL
+
+  # ---
+
+  iptables -F
+
+  iptables -P INPUT ACCEPT
+  iptables -P FORWARD ACCEPT
+  iptables -P OUTPUT ACCEPT
+
+  echo ---
+  iptables -nvL
+
+  # ---
+
+  ip6tables -t nat -F
+
+  echo ---
+  ip6tables -t nat -nvL
+
+  # ---
+
+  ip6tables -F
+
+  ip6tables -P INPUT ACCEPT
+  ip6tables -P FORWARD ACCEPT
+  ip6tables -P OUTPUT ACCEPT
+
+  echo ---
+  ip6tables -nvL
+
+  # ---
+
+  systemctl stop tor
+
+  # ---
+
+  > /etc/hosts.deny
+  > /etc/hosts.allow
+
+  # ---
+
+  {
+    echo
+    echo nameserver 1.1.1.1
+  } > /etc/resolv.conf && cat /etc/resolv.conf
+
+  # ---
+
+  echo
+
+  # disable_ipv6.conf
+  sysctl -w net.ipv6.conf.all.disable_ipv6=0
+  sysctl -w net.ipv6.conf.default.disable_ipv6=0
+
+  # fs_protected.conf
+  sysctl -w fs.protected_fifos=1
+  sysctl -w fs.protected_regular=2
+
+  # kexec.conf
+  #sysctl -w kernel.kexec_load_disabled=0
+
+  # kptr_restrict.conf
+  sysctl -w kernel.kptr_restrict=0
+
+  # mmap_aslr.conf
+  sysctl -w vm.mmap_rnd_bits=28
+  sysctl -w vm.mmap_rnd_compat_bits=8
+
+  # pmtud.conf
+  sysctl -w net.ipv4.tcp_mtu_probing=0
+
+  # ptrace_scope.conf
+  sysctl -w kernel.yama.ptrace_scope=0
+
+  # unprivileged_bpf.conf
+  sysctl -w kernel.unprivileged_bpf_disabled=2
+
+  # unprivileged_userfaultfd.conf
+  sysctl -w vm.unprivileged_userfaultfd=1
+
+  # tcp_timestamp.conf
+  sysctl -w net.ipv4.tcp_timestamps=1
+
+  # ---
+
+  ln -sf /usr/share/zoneinfo/UTC /etc/localtime && echo && echo UTC
+
+  # ---
+
+  hostnamectl set-hostname $RANDOM_WORDS; echo; cat /etc/hostname
+  echo -e "127.0.0.1\tlocalhost\n127.0.1.1\t$RANDOM_WORDS" > /etc/hosts
+}
+
+start() {
+  uid=${1:-tor}; id $uid || exit 2
+
+  # ---
+
+  iptables -t nat -F
+
+  iptables -t nat -A OUTPUT -p udp --dport 53 -j DNAT --to-destination='127.0.0.1:9053'
+  iptables -t nat -A OUTPUT -p tcp -d 10.192.0.0/10 --syn -j DNAT --to-destination='127.0.0.1:9040'
+
+  iptables -t nat -A OUTPUT -m owner --uid-owner $uid -j RETURN
+  iptables -t nat -A OUTPUT -p tcp --dport 443 -j RETURN
+  iptables -t nat -A OUTPUT -p tcp --dport 80 -j RETURN
+  iptables -t nat -A OUTPUT -o lo -j RETURN
+
+  for sp in $SP; do
+    iptables -t nat -A OUTPUT -d $sp -j RETURN
+  done
+
+  iptables -t nat -A OUTPUT -p tcp --syn -j DNAT --to-destination='127.0.0.1:9040'
+
+  echo ---
+  iptables -t nat -nvL
+
+  # ---
+
+  iptables -F
+
+  iptables -A INPUT -m state --state INVALID -j DROP
+  iptables -A INPUT -m state --state ESTABLISHED -j ACCEPT
+  iptables -A INPUT -i lo -j ACCEPT
+  iptables -A INPUT -j DROP
+  iptables -P INPUT DROP
+
+  iptables -A FORWARD -j DROP
+  iptables -P FORWARD DROP
+
+  iptables -A OUTPUT -m state --state INVALID -j DROP
+  iptables -A OUTPUT -m state --state ESTABLISHED -j ACCEPT
+
+  iptables -A OUTPUT -p udp -d 127.0.0.1 --dport 9053 -j ACCEPT
+  iptables -A OUTPUT -p tcp -d 127.0.0.1 --dport 9040 --syn -j ACCEPT
+
+  iptables -A OUTPUT -p tcp -m owner --uid-owner $uid -m state --state NEW --syn -j ACCEPT
+  iptables -A OUTPUT -p tcp --dport 443 --syn -j ACCEPT
+  iptables -A OUTPUT -p tcp --dport 80 --syn -j ACCEPT
+  iptables -A OUTPUT -o lo -j ACCEPT
+
+  for sp in $SP; do
+    iptables -A OUTPUT -d $sp -j DROP
+  done
+
+  iptables -A OUTPUT -j DROP
+  iptables -P OUTPUT DROP
+
+  echo ---
+  iptables -nvL
+
+  # ---
+
+  #ip6tables -F
+
+  #ip6tables -A INPUT -j DROP
+  #ip6tables -P INPUT DROP
+
+  #ip6tables -A FORWARD -j DROP
+  #ip6tables -P FORWARD DROP
+
+  #ip6tables -A OUTPUT -j DROP
+  #ip6tables -P OUTPUT DROP
+
+  #echo ---
+  #ip6tables -nvL
+
+  # ---
+
+  > /etc/hosts.allow
+
+  {
+    echo
+    echo ALL:ALL
+  } > /etc/hosts.deny && cat /etc/hosts.deny
+
+  # ---
+
+  {
+    echo
+    echo nameserver 127.0.0.1
+  } > /etc/resolv.conf && cat /etc/resolv.conf
+
+  # ---
+
+  echo
+
+  # disable_ipv6.conf
+  sysctl -w net.ipv6.conf.all.disable_ipv6=1
+  sysctl -w net.ipv6.conf.default.disable_ipv6=1
+
+  # fs_protected.conf
+  sysctl -w fs.protected_fifos=2
+  sysctl -w fs.protected_regular=2
+
+  # kexec.conf
+  sysctl -w kernel.kexec_load_disabled=1
+
+  # kptr_restrict.conf
+  sysctl -w kernel.kptr_restrict=2
+
+  # mmap_aslr.conf
+  sysctl -w vm.mmap_rnd_bits=32
+  sysctl -w vm.mmap_rnd_compat_bits=16
+
+  # pmtud.conf
+  sysctl -w net.ipv4.tcp_mtu_probing=1
+
+  # ptrace_scope.conf
+  sysctl -w kernel.yama.ptrace_scope=2
+
+  # unprivileged_bpf.conf
+  sysctl -w kernel.unprivileged_bpf_disabled=1
+
+  # unprivileged_userfaultfd.conf
+  sysctl -w vm.unprivileged_userfaultfd=0
+
+  # tcp_timestamp.conf
+  sysctl -w net.ipv4.tcp_timestamps=0
+
+  # ---
+
+  ln -sf /usr/share/zoneinfo/UTC /etc/localtime && echo && echo UTC
+
+  # ---
+
+  hostnamectl set-hostname $RANDOM_WORDS; echo; cat /etc/hostname
+  echo -e "127.0.0.1\tlocalhost\n127.0.1.1\t$RANDOM_WORDS" > /etc/hosts
+
+  # ---
+
+  {
+    echo
+    echo DNSPort 127.0.0.1:9053
+    echo AutomapHostsOnResolve 1
+    echo AutomapHostsSuffixes .onion
+    echo
+    echo TransPort 127.0.0.1:9040
+    echo VirtualAddrNetwork 10.192.0.0/10
+  } > /etc/tor/torrc && systemctl restart tor && cat /etc/tor/torrc
+}
+
+case $1 in
+  stop)
+    stop; echo; echo [ ok ]
+  ;;
+  start)
+    start $2; echo; echo [ ok ]
+  ;;
+  restart)
+    systemctl restart tor; echo; echo [ ok ]
+  ;;
+  *)
+    echo $0 stop
+    echo $0 restart
+    echo $0 start [debian-]tor
+  ;;
+esac

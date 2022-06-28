@@ -1,0 +1,173 @@
+#!/bin/bash
+
+type tor || exit 1
+[ $EUID != 0 ] && echo run as root ! && exit 2
+PATH='/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+SP='255.255.255.255/32 240.0.0.0/4 233.252.0.0/24 224.0.0.0/4 203.0.113.0/24 198.51.100.0/24 198.18.0.0/15 192.168.0.0/16 192.88.99.0/24 192.0.2.0/24 192.0.0.0/24 172.16.0.0/12 169.254.0.0/16 127.0.0.0/8 100.64.0.0/10 10.0.0.0/8 0.0.0.0/8'
+
+stop() {
+  iptables -t nat -F
+
+  echo ---
+  iptables -t nat -nvL
+
+  # ---
+
+  iptables -F
+
+  iptables -P INPUT ACCEPT
+  iptables -P FORWARD ACCEPT
+  iptables -P OUTPUT ACCEPT
+
+  echo ---
+  iptables -nvL
+
+  # ---
+
+  ip6tables -t nat -F
+
+  echo ---
+  ip6tables -t nat -nvL
+
+  # ---
+
+  ip6tables -F
+
+  ip6tables -P INPUT ACCEPT
+  ip6tables -P FORWARD ACCEPT
+  ip6tables -P OUTPUT ACCEPT
+
+  echo ---
+  ip6tables -nvL
+
+  # ---
+
+  systemctl stop tor
+
+  # ---
+
+  {
+    echo
+    echo nameserver 1.1.1.1
+  } > /etc/resolv.conf && cat /etc/resolv.conf
+}
+
+start() {
+  uid=${1:-tor}; id $uid || exit 3
+
+  # ---
+
+  iptables -t nat -F
+
+  iptables -t nat -A OUTPUT -p udp --dport 53 -j DNAT --to-destination='127.0.0.1:9053'
+  iptables -t nat -A OUTPUT -p tcp -d 10.192.0.0/10 --syn -j DNAT --to-destination='127.0.0.1:9040'
+
+  iptables -t nat -A OUTPUT -m owner --uid-owner $uid -j RETURN
+  iptables -t nat -A OUTPUT -p tcp --dport 443 -j RETURN
+  iptables -t nat -A OUTPUT -p tcp --dport 80 -j RETURN
+  iptables -t nat -A OUTPUT -o lo -j RETURN
+
+  for sp in $SP; do
+    iptables -t nat -A OUTPUT -d $sp -j RETURN
+  done
+
+  iptables -t nat -A OUTPUT -p tcp --syn -j DNAT --to-destination='127.0.0.1:9040'
+
+  echo ---
+  iptables -t nat -nvL
+
+  # ---
+
+  iptables -F
+
+  iptables -A INPUT -m state --state INVALID -j DROP
+  iptables -A INPUT -m state --state ESTABLISHED -j ACCEPT
+  iptables -A INPUT -i lo -j ACCEPT
+  iptables -A INPUT -j DROP
+  iptables -P INPUT DROP
+
+  iptables -A FORWARD -j DROP
+  iptables -P FORWARD DROP
+
+  iptables -A OUTPUT -m state --state INVALID -j DROP
+  iptables -A OUTPUT -m state --state ESTABLISHED -j ACCEPT
+
+  iptables -A OUTPUT -p udp -d 127.0.0.1 --dport 9053 -j ACCEPT
+  iptables -A OUTPUT -p tcp -d 127.0.0.1 --dport 9040 --syn -j ACCEPT
+
+  iptables -A OUTPUT -p tcp -m owner --uid-owner $uid -m state --state NEW --syn -j ACCEPT
+  iptables -A OUTPUT -p tcp --dport 443 --syn -j ACCEPT
+  iptables -A OUTPUT -p tcp --dport 80 --syn -j ACCEPT
+  iptables -A OUTPUT -o lo -j ACCEPT
+
+  for sp in $SP; do
+    iptables -A OUTPUT -d $sp -j DROP
+  done
+
+  iptables -A OUTPUT -j DROP
+  iptables -P OUTPUT DROP
+
+  echo ---
+  iptables -nvL
+
+  # ---
+
+  #ip6tables -F
+
+  #ip6tables -A INPUT -j DROP
+  #ip6tables -P INPUT DROP
+
+  #ip6tables -A FORWARD -j DROP
+  #ip6tables -P FORWARD DROP
+
+  #ip6tables -A OUTPUT -j DROP
+  #ip6tables -P OUTPUT DROP
+
+  #echo ---
+  #ip6tables -nvL
+
+  # ---
+
+  > /etc/hosts.allow
+
+  {
+    echo
+    echo ALL:ALL
+  } > /etc/hosts.deny && cat /etc/hosts.deny
+
+  # ---
+
+  {
+    echo
+    echo nameserver 127.0.0.1
+  } > /etc/resolv.conf && cat /etc/resolv.conf
+
+  # ---
+
+  {
+    echo
+    echo DNSPort 127.0.0.1:9053
+    echo AutomapHostsOnResolve 1
+    echo AutomapHostsSuffixes .onion
+    echo
+    echo TransPort 127.0.0.1:9040
+    echo VirtualAddrNetwork 10.192.0.0/10
+  } > /etc/tor/torrc && systemctl restart tor && cat /etc/tor/torrc
+}
+
+case $1 in
+  stop)
+    stop; echo; echo [ ok ]
+  ;;
+  start)
+    start $2; echo; echo [ ok ]
+  ;;
+  restart)
+    systemctl restart tor; echo; echo [ ok ]
+  ;;
+  *)
+    echo $0 stop
+    echo $0 restart
+    echo $0 start [debian-]tor
+  ;;
+esac
