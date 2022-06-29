@@ -6,18 +6,18 @@
 > $ chmod 0755 ./anonymous
 
 ## Help
-> $ sudo anonymous
+> $ sudo ./anonymous
 
 ## Stop
-> $ sudo anonymous stop
+> $ sudo ./anonymous stop
 
 ## Start
-> $ sudo anonymous start debian-tor
+> $ sudo ./anonymous start debian-tor
 
 ## Restart
-> $ sudo anonymous restart
+> $ sudo ./anonymous restart
 
 ## Anonymous-Mode DNS Only
 > $ chmod 0755 ./firewall
 
-> $ sudo firewall start debian-tor
+> $ sudo ./firewall start debian-tor
