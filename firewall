@@ -167,19 +167,19 @@ start() {
 
   # ---
 
-  #ip6tables -F
+  ip6tables -F
 
-  #ip6tables -A INPUT -j DROP
-  #ip6tables -P INPUT DROP
+  ip6tables -A INPUT -j DROP
+  ip6tables -P INPUT DROP
 
-  #ip6tables -A FORWARD -j DROP
-  #ip6tables -P FORWARD DROP
+  ip6tables -A FORWARD -j DROP
+  ip6tables -P FORWARD DROP
 
-  #ip6tables -A OUTPUT -j DROP
-  #ip6tables -P OUTPUT DROP
+  ip6tables -A OUTPUT -j DROP
+  ip6tables -P OUTPUT DROP
 
-  #echo ---
-  #ip6tables -nvL
+  echo ---
+  ip6tables -nvL
 
   # ---
 
