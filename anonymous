@@ -3,7 +3,7 @@
 [ $EUID != 0 ] && echo run as root ! && exit 1
 
 type tor || exit 10
-[ ! -e /usr/share/dict/words ] && echo apt install wamerican && exit 11
+[ ! -e /usr/share/dict/words ] && echo -e "apt install wamerican\npacman -S words" && exit 11
 
 PATH='/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
 RANDOM_WORDS=$(sed -n ${RANDOM}p /usr/share/dict/words | sed -r s/[^a-zA-Z]//g)
@@ -242,6 +242,9 @@ start() {
   # ---
 
   {
+    echo
+    echo User $uid
+    echo DataDirectory /var/lib/tor/
     echo
     echo DNSPort 127.0.0.1:9053
     echo AutomapHostsOnResolve 1
