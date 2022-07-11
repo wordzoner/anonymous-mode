@@ -17,6 +17,10 @@
 ## Restart
 > $ sudo ./anonymous restart
 
+## Start Arch Linux
+
+> $ sudo ./anonymous start tor
+
 ## Anonymous-Mode DNS Only
 > $ chmod 0755 ./firewall
 
