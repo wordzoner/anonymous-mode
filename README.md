@@ -17,7 +17,7 @@
 ## Restart
 > $ sudo ./anonymous restart
 
-## Start Arch Linux
+## Start Arch Linux (Beta)
 
 > $ sudo ./anonymous start tor
 
