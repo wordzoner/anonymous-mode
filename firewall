@@ -37,6 +37,18 @@ stop() {
   change_hostname
 }
 
+lite() {
+  uid=${1:-tor}; id $uid || exit 2
+
+  # ---
+
+  enable_iptables $uid
+
+  # ---
+
+  enable_tor $uid
+}
+
 start() {
   uid=${1:-tor}; id $uid || exit 2
 
@@ -322,6 +334,9 @@ case $1 in
   stop)
     stop; echo; echo [ ok ]
   ;;
+  lite)
+    lite $2; echo; echo [ ok ]
+  ;;
   start)
     start $2; echo; echo [ ok ]
   ;;
@@ -331,6 +346,7 @@ case $1 in
   *)
     echo $0 stop
     echo $0 restart
+    echo $0 lite [debian-]tor
     echo $0 start [debian-]tor
   ;;
 esac
