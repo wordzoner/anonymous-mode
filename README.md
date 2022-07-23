@@ -21,7 +21,7 @@
 
 > $ sudo ./anonymous start tor
 
-## Anonymous-Mode DNS Only
+## Anonymous-Mode DNS HTTP HTTPS Only
 > $ chmod 0755 ./firewall
 
 > $ sudo ./firewall start debian-tor
