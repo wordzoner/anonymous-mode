@@ -81,6 +81,10 @@ start() {
   enable_tor $uid
 }
 
+ok() {
+  echo; echo [ ok ]
+}
+
 stop_tor() {
   systemctl stop tor
 }
@@ -328,16 +332,16 @@ change_hostname() {
 
 case $1 in
   stop)
-    stop; echo; echo [ ok ]
+    stop; ok
   ;;
   lite)
-    lite $2; echo; echo [ ok ]
+    lite $2; ok
   ;;
   start)
-    start $2; echo; echo [ ok ]
+    start $2; ok
   ;;
   restart)
-    restart_tor; echo; echo [ ok ]
+    restart_tor; ok
   ;;
   *)
     echo $0 stop
