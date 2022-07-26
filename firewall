@@ -27,14 +27,6 @@ stop() {
   # ---
 
   disable_sysctl
-
-  # ---
-
-  change_timezone
-
-  # ---
-
-  change_hostname
 }
 
 lite() {
