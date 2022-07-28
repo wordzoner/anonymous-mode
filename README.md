@@ -18,7 +18,6 @@
 > $ sudo ./anonymous restart
 
 ## Start Arch Linux (Beta)
-
 > $ sudo ./anonymous start tor
 
 ## Anonymous-Mode DNS Only
@@ -27,7 +26,6 @@
 > $ sudo ./firewall start debian-tor
 
 ## Anonymous-Mode Diff Anonymous Firewall
-
 ```diff
 --- ./anonymous 2022-07-26 02:19:16.294297014 +0000
 +++ ./firewall  2022-07-28 05:27:56.169252161 +0000
