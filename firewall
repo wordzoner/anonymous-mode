@@ -39,19 +39,11 @@ lite() {
 
   # ---
 
-  enable_iptables $uid
-
-  # ---
-
-  enable_tor $uid
+  enable_tor $uid; enable_iptables $uid
 }
 
 start() {
   uid=${1:-tor}; id $uid || exit 2
-
-  # ---
-
-  enable_iptables $uid
 
   # ---
 
@@ -75,7 +67,7 @@ start() {
 
   # ---
 
-  enable_tor $uid
+  enable_tor $uid; enable_iptables $uid
 }
 
 ok() {
