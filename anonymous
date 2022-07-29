@@ -28,6 +28,10 @@ stop() {
   # ---
 
   disable_sysctl
+
+  # ---
+
+  disable_iptables
 }
 
 lite() {
