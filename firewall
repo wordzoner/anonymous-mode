@@ -5,7 +5,7 @@
 type tor || exit 10
 [ ! -e /usr/share/dict/words ] && echo -e "apt install wamerican\npacman -S words" && exit 11
 
-CHATTR=true
+CHATTR=true; ANONYMOUS=true
 PATH='/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
 RANDOM_WORDS=$(sed -n ${RANDOM}p /usr/share/dict/words | sed -r s/[^a-zA-Z]//g)
 SP='255.255.255.255/32 240.0.0.0/4 233.252.0.0/24 224.0.0.0/4 203.0.113.0/24 198.51.100.0/24 198.18.0.0/15 192.168.0.0/16 192.88.99.0/24 192.0.2.0/24 192.0.0.0/24 172.16.0.0/12 169.254.0.0/16 127.0.0.0/8 100.64.0.0/10 10.0.0.0/8 0.0.0.0/8'
@@ -35,15 +35,15 @@ stop() {
 }
 
 lite() {
-  uid=${1:-tor}; id $uid || exit 2
+  uid=${1:-tor}; fw=${2:-firewall}; id $uid || exit 2
 
   # ---
 
-  enable_tor $uid; enable_iptables $uid
+  enable_tor $uid; enable_iptables $uid $fw
 }
 
 start() {
-  uid=${1:-tor}; id $uid || exit 2
+  uid=${1:-tor}; fw=${2:-firewall}; id $uid || exit 2
 
   # ---
 
@@ -67,7 +67,7 @@ start() {
 
   # ---
 
-  enable_tor $uid; enable_iptables $uid
+  enable_tor $uid; enable_iptables $uid $fw
 }
 
 ok() {
@@ -227,9 +227,10 @@ enable_iptables() {
   iptables -t nat -A OUTPUT -p tcp -d 10.192.0.0/10 --syn -j DNAT --to-destination='127.0.0.1:9040'
 
   iptables -t nat -A OUTPUT -m owner --uid-owner $1 -j RETURN
-  iptables -t nat -A OUTPUT -p tcp --dport 443 -j RETURN
-  iptables -t nat -A OUTPUT -p tcp --dport 80 -j RETURN
   iptables -t nat -A OUTPUT -o lo -j RETURN
+
+  [ $2 == firewall ] && iptables -t nat -A OUTPUT -p tcp --dport 443 -j RETURN
+  [ $2 == firewall ] && iptables -t nat -A OUTPUT -p tcp --dport 80 -j RETURN
 
   for sp in $SP; do
     iptables -t nat -A OUTPUT -d $sp -j RETURN
@@ -260,9 +261,10 @@ enable_iptables() {
   iptables -A OUTPUT -p tcp -d 127.0.0.1 --dport 9040 --syn -j ACCEPT
 
   iptables -A OUTPUT -p tcp -m owner --uid-owner $1 -m state --state NEW --syn -j ACCEPT
-  iptables -A OUTPUT -p tcp --dport 443 --syn -j ACCEPT
-  iptables -A OUTPUT -p tcp --dport 80 --syn -j ACCEPT
   iptables -A OUTPUT -o lo -j ACCEPT
+
+  [ $2 == firewall ] && iptables -A OUTPUT -p tcp --dport 443 --syn -j ACCEPT
+  [ $2 == firewall ] && iptables -A OUTPUT -p tcp --dport 80 --syn -j ACCEPT
 
   for sp in $SP; do
     iptables -A OUTPUT -d $sp -j DROP
@@ -341,10 +343,10 @@ case $1 in
     stop; ok
   ;;
   lite)
-    lite $2; ok
+    lite $2 $3; ok
   ;;
   start)
-    start $2; ok
+    start $2 $3; ok
   ;;
   restart)
     restart_tor; ok
@@ -352,7 +354,7 @@ case $1 in
   *)
     echo $0 stop
     echo $0 restart
-    echo $0 lite [debian-]tor
-    echo $0 start [debian-]tor
+    echo $0 lite [debian-tor] [anon_mode_is_random_string]
+    echo $0 start [debian-tor] [anon_mode_is_random_string]
   ;;
 esac
