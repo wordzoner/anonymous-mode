@@ -354,7 +354,7 @@ case $1 in
   *)
     echo $0 stop
     echo $0 restart
-    echo $0 lite [debian-tor] [anon_mode_is_random_string]
-    echo $0 start [debian-tor] [anon_mode_is_random_string]
+    echo $0 lite [debian-]tor anon[-mode-is-random-string]
+    echo $0 start [debian-]tor anon[-mode-is-random-string]
   ;;
 esac
