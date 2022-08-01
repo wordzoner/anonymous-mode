@@ -5,7 +5,7 @@
 type tor || exit 10
 [ ! -e /usr/share/dict/words ] && echo -e "apt install wamerican\npacman -S words" && exit 11
 
-CHATTR=true; ANONYMOUS=true
+CHATTR=true
 PATH='/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
 RANDOM_WORDS=$(sed -n ${RANDOM}p /usr/share/dict/words | sed -r s/[^a-zA-Z]//g)
 SP='255.255.255.255/32 240.0.0.0/4 233.252.0.0/24 224.0.0.0/4 203.0.113.0/24 198.51.100.0/24 198.18.0.0/15 192.168.0.0/16 192.88.99.0/24 192.0.2.0/24 192.0.0.0/24 172.16.0.0/12 169.254.0.0/16 127.0.0.0/8 100.64.0.0/10 10.0.0.0/8 0.0.0.0/8'
