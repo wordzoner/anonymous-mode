@@ -10,28 +10,42 @@ PATH='/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
 RANDOM_WORDS=$(sed -n ${RANDOM}p /usr/share/dict/words | sed -r s/[^a-zA-Z]//g)
 SP='255.255.255.255/32 240.0.0.0/4 233.252.0.0/24 224.0.0.0/4 203.0.113.0/24 198.51.100.0/24 198.18.0.0/15 192.168.0.0/16 192.88.99.0/24 192.0.2.0/24 192.0.0.0/24 172.16.0.0/12 169.254.0.0/16 127.0.0.0/8 100.64.0.0/10 10.0.0.0/8 0.0.0.0/8'
 
+y_n() {
+  read -p "$1" yn
+  case $yn in
+    ''|[yY])
+      echo Yes !
+      return 0
+    ;;
+    *)
+      echo No !
+      return 1
+    ;;
+  esac
+}
+
 stop() {
-  stop_tor
+  if y_n stop_tor_?; then stop_tor; fi
 
   # ---
 
-  disable_tor
+  if y_n disable_tor_?; then disable_tor; fi
 
   # ---
 
-  disable_hosts
+  if y_n disable_hosts_?; then disable_hosts; fi
 
   # ---
 
-  disable_resolv
+  if y_n disable_resolv_?; then disable_resolv; fi
 
   # ---
 
-  disable_sysctl
+  if y_n disable_sysctl_?; then disable_sysctl; fi
 
   # ---
 
-  disable_iptables
+  if y_n disable_iptables_?; then disable_iptables; fi
 }
 
 lite() {
@@ -39,7 +53,8 @@ lite() {
 
   # ---
 
-  enable_tor $uid; enable_iptables $uid $fw
+  if y_n enable_tor_?; then enable_tor $uid; fi
+  if y_n enable_iptables_?; then enable_iptables $uid $fw; fi
 }
 
 start() {
@@ -47,31 +62,32 @@ start() {
 
   # ---
 
-  enable_hosts
+  if y_n enable_hosts_?; then enable_hosts; fi
 
   # ---
 
-  enable_resolv
+  if y_n enable_resolv_?; then enable_resolv; fi
 
   # ---
 
-  enable_sysctl
+  if y_n enable_sysctl_?; then enable_sysctl; fi
 
   # ---
 
-  change_timezone
+  if y_n change_timezone_?; then change_timezone; fi
 
   # ---
 
-  change_hostname
+  if y_n change_hostname_?; then change_hostname; fi
 
   # ---
 
-  enable_tor $uid; enable_iptables $uid $fw
+  if y_n enable_tor_?; then enable_tor $uid; fi
+  if y_n enable_iptables_?; then enable_iptables $uid $fw; fi
 }
 
 ok() {
-  echo; echo [ ok ]
+  echo [ ok ]; read
 }
 
 stop_tor() {
@@ -89,7 +105,6 @@ restart_tor() {
 enable_tor() {
   [ $CHATTR == true ] && chattr -i /etc/tor/torrc
   {
-    echo
     echo User $1
     echo DataDirectory /var/lib/tor/
     echo
@@ -111,7 +126,6 @@ disable_tor() {
 enable_hosts() {
   [ $CHATTR == true ] && chattr -i /etc/hosts.deny
   {
-    echo
     echo ALL:ALL
   } > /etc/hosts.deny && cat /etc/hosts.deny
   [ $CHATTR == true ] && chattr +i /etc/hosts.deny
@@ -132,7 +146,6 @@ disable_hosts() {
 enable_resolv() {
   [ $CHATTR == true ] && chattr -i /etc/resolv.conf
   {
-    echo
     echo nameserver 127.0.0.1
   } > /etc/resolv.conf && cat /etc/resolv.conf
   [ $CHATTR == true ] && chattr +i /etc/resolv.conf
@@ -141,14 +154,11 @@ enable_resolv() {
 disable_resolv() {
   [ $CHATTR == true ] && chattr -i /etc/resolv.conf
   {
-    echo
     echo nameserver 1.1.1.1
   } > /etc/resolv.conf && cat /etc/resolv.conf
 }
 
 enable_sysctl() {
-  echo
-
   # disable_ipv6.conf
   sysctl -w net.ipv6.conf.all.disable_ipv6=1
   sysctl -w net.ipv6.conf.default.disable_ipv6=1
@@ -184,8 +194,6 @@ enable_sysctl() {
 }
 
 disable_sysctl() {
-  echo
-
   # disable_ipv6.conf
   sysctl -w net.ipv6.conf.all.disable_ipv6=0
   sysctl -w net.ipv6.conf.default.disable_ipv6=0
@@ -330,11 +338,11 @@ disable_iptables() {
 }
 
 change_timezone() {
-  ln -sf /usr/share/zoneinfo/UTC /etc/localtime && echo && echo UTC
+  ln -sf /usr/share/zoneinfo/UTC /etc/localtime && echo UTC
 }
 
 change_hostname() {
-  hostnamectl set-hostname $RANDOM_WORDS; echo; cat /etc/hostname
+  hostnamectl set-hostname $RANDOM_WORDS; cat /etc/hostname
   echo -e "127.0.0.1\tlocalhost\n127.0.1.1\t$RANDOM_WORDS" > /etc/hosts
 }
 
