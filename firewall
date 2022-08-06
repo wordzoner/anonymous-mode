@@ -10,6 +10,10 @@ PATH='/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
 RANDOM_WORDS=$(sed -n ${RANDOM}p /usr/share/dict/words | sed -r s/[^a-zA-Z]//g)
 SP='255.255.255.255/32 240.0.0.0/4 233.252.0.0/24 224.0.0.0/4 203.0.113.0/24 198.51.100.0/24 198.18.0.0/15 192.168.0.0/16 192.88.99.0/24 192.0.2.0/24 192.0.0.0/24 172.16.0.0/12 169.254.0.0/16 127.0.0.0/8 100.64.0.0/10 10.0.0.0/8 0.0.0.0/8'
 
+ok() {
+  echo [ ok ]; read
+}
+
 y_n() {
   read -p $1 yn
   case $yn in
@@ -86,8 +90,33 @@ start() {
   if y_n enable_iptables_?; then enable_iptables $uid $fw; fi
 }
 
-ok() {
-  echo [ ok ]; read
+custom() {
+  uid=${1:-tor}; fw=${2:-firewall}; id $uid || exit 2
+
+  # ---
+
+  if y_n change_timezone_?; then change_timezone; fi
+
+  # ---
+
+  if y_n change_hostname_?; then change_hostname; fi
+
+  # ---
+
+  if y_n enable_hosts_?; then enable_hosts; else disable_hosts; fi
+
+  # ---
+
+  if y_n enable_resolv_?; then enable_resolv; else disable_resolv; fi
+
+  # ---
+
+  if y_n enable_sysctl_?; then enable_sysctl; else disable_sysctl; fi
+
+  # ---
+
+  if y_n enable_tor_?; then enable_tor $uid; else disable_tor; fi
+  if y_n enable_iptables_?; then enable_iptables $uid $fw; else disable_iptables; fi
 }
 
 stop_tor() {
@@ -356,6 +385,9 @@ case $1 in
   start)
     start $2 $3; ok
   ;;
+  custom)
+    custom $2 $3; ok
+  ;;
   restart)
     restart_tor; ok
   ;;
@@ -364,5 +396,6 @@ case $1 in
     echo $0 restart
     echo $0 lite [debian-]tor anon[-mode-is-random-string]
     echo $0 start [debian-]tor anon[-mode-is-random-string]
+    echo $0 custom [debian-]tor anon[-mode-is-random-string]
   ;;
 esac
