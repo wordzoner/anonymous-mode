@@ -134,6 +134,8 @@ restart_tor() {
 enable_tor() {
   [ $CHATTR == true ] && chattr -i /etc/tor/torrc
   {
+    echo Sandbox 1
+    echo
     echo User $1
     echo DataDirectory /var/lib/tor/
     echo
