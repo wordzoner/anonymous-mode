@@ -5,6 +5,10 @@ type tor || exit 1
 PATH='/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
 SP='255.255.255.255/32 240.0.0.0/4 233.252.0.0/24 224.0.0.0/4 203.0.113.0/24 198.51.100.0/24 198.18.0.0/15 192.168.0.0/16 192.88.99.0/24 192.0.2.0/24 192.0.0.0/24 172.16.0.0/12 169.254.0.0/16 127.0.0.0/8 100.64.0.0/10 10.0.0.0/8 0.0.0.0/8'
 
+ok() {
+  echo [ ok ]
+}
+
 stop() {
   iptables -t nat -F
 
@@ -47,7 +51,6 @@ stop() {
   # ---
 
   {
-    echo
     echo nameserver 1.1.1.1
   } > /etc/resolv.conf && cat /etc/resolv.conf
 }
@@ -131,21 +134,18 @@ start() {
   > /etc/hosts.allow
 
   {
-    echo
     echo ALL:ALL
   } > /etc/hosts.deny && cat /etc/hosts.deny
 
   # ---
 
   {
-    echo
     echo nameserver 127.0.0.1
   } > /etc/resolv.conf && cat /etc/resolv.conf
 
   # ---
 
   {
-    echo
     echo DNSPort 127.0.0.1:9053
     echo AutomapHostsOnResolve 1
     echo AutomapHostsSuffixes .onion
@@ -157,13 +157,13 @@ start() {
 
 case $1 in
   stop)
-    stop; echo; echo [ ok ]
+    stop; ok
   ;;
   start)
-    start $2; echo; echo [ ok ]
+    start $2; ok
   ;;
   restart)
-    systemctl restart tor; echo; echo [ ok ]
+    systemctl restart tor; ok
   ;;
   *)
     echo $0 stop

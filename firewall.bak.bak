@@ -118,7 +118,6 @@ start() {
 	# ---
 
 	{
-		echo
 		echo DNSPort 127.0.0.1:9053
 		echo AutomapHostsOnResolve 1
 		echo AutomapHostsSuffixes .onion

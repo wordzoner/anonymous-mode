@@ -29,7 +29,6 @@ start() {
   iptables -t nat -A OUTPUT -p tcp --syn -j REDIRECT --to-ports 9040
 
   {
-    echo
     echo DNSPort 9053
     echo AutomapHostsOnResolve 1
     echo AutomapHostsSuffixes .onion
