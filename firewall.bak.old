@@ -1,0 +1,53 @@
+#!/bin/bash
+
+type tor || exit 1
+[ $EUID != 0 ] && echo run as root ! && exit 2
+PATH='/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+SP='255.255.255.255/32 240.0.0.0/4 233.252.0.0/24 224.0.0.0/4 203.0.113.0/24 198.51.100.0/24 198.18.0.0/15 192.168.0.0/16 192.88.99.0/24 192.0.2.0/24 192.0.0.0/24 172.16.0.0/12 169.254.0.0/16 127.0.0.0/8 100.64.0.0/10 10.0.0.0/8 0.0.0.0/8'
+
+stop() {
+  iptables -t nat -F
+
+  systemctl stop tor
+}
+
+start() {
+  uid=${1:-tor}; id $uid || exit 3
+
+  iptables -t nat -F
+
+  iptables -t nat -A OUTPUT -p udp --dport 53 -j REDIRECT --to-ports 9053
+  iptables -t nat -A OUTPUT -p tcp -d 10.192.0.0/10 --syn -j REDIRECT --to-ports 9040
+
+  iptables -t nat -A OUTPUT -m owner --uid-owner $uid -j RETURN
+  iptables -t nat -A OUTPUT -o lo -j RETURN
+
+  for sp in $SP; do
+    iptables -t nat -A OUTPUT -d $sp -j RETURN
+  done
+
+  iptables -t nat -A OUTPUT -p tcp --syn -j REDIRECT --to-ports 9040
+
+  {
+    echo
+    echo DNSPort 9053
+    echo AutomapHostsOnResolve 1
+    echo AutomapHostsSuffixes .onion
+    echo
+    echo TransPort 9040
+    echo VirtualAddrNetwork 10.192.0.0/10
+  } > /etc/tor/torrc && systemctl restart tor
+}
+
+case $1 in
+  stop)
+    stop
+  ;;
+  start)
+    start $2
+  ;;
+  *)
+    echo $0 stop
+    echo $0 start [debian-]tor
+  ;;
+esac
