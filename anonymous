@@ -1,0 +1,577 @@
+#!/bin/sh -eu
+
+[ $(id -u) -ne 0 ] && echo 'run as root !' && exit 1
+
+type tor curl || exit 10
+[ ! -e /usr/share/dict/words ] && echo -e "apt install wamerican\npacman -S words" && exit 11
+
+ANONYMOUS_MODE_CHATTR=false
+ANONYMOUS_MODE_SECURITY=true
+ANONYMOUS_MODE_HTTPS=true; ANONYMOUS_MODE_HTTP=true
+PATH='/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'; TOR_UID='debian-tor'
+DNS_PORT=53; HTTP_PORT=80; HTTPS_PORT=443; TOR_VIRTUAL_ADDR=10.192.0.0/10; TOR_DNS_PORT=9053; TOR_TRANS_PORT=9040; TOR_HTTP_PORT=8118
+WORDS_NUM=$(wc -l /usr/share/dict/words | awk -F ' ' {'print $1'}) && RANDOM_WORDS=$(sed -n $(shuf -i 1-$WORDS_NUM -n 1)p /usr/share/dict/words | sed -r s/[^a-zA-Z]//g)
+SP='255.255.255.255/32 240.0.0.0/4 233.252.0.0/24 224.0.0.0/4 203.0.113.0/24 198.51.100.0/24 198.18.0.0/15 192.168.0.0/16 192.88.99.0/24 192.0.2.0/24 192.0.0.0/24 172.16.0.0/12 169.254.0.0/16 127.0.0.0/8 100.64.0.0/10 10.0.0.0/8 0.0.0.0/8'
+
+ok() {
+  echo [ ok ]; read ENTER
+
+  return 0
+}
+
+y_n() {
+  read -p "$1" yn
+  case "$yn" in
+    ''|[yY]*)
+      echo 'Yes !'
+      return 0
+    ;;
+    *)
+      echo 'No !'
+      return 1
+    ;;
+  esac
+}
+
+logo() {
+  echo "                                      "
+  echo "            '''        '''            "
+  echo "          cNMMO        0MMNc          "
+  echo "        lNMMMX         .NMMMNl        "
+  echo "      oWMMMMW.    :,    ,MMMMMWo      "
+  echo "   .dWMMMMMMc     NX     oMMMMMMWd.   "
+  echo "  .WMMMMMMMk     OMMx     0MMMMMMMW.  "
+  echo "  .MMMMMMMX     cMMMM;    .NMMMMMMM.  "
+  echo "  .MMMMMMW.    .WMMMMW.    'MMMMMMM.  "
+  echo "  .MMMMMM:     KWWWWWWO     lMMMMMM.  "
+  echo "  .MMMMMx                    OMMMMM.  "
+  echo "  .MMMMK                      NMMMM.  "
+  echo "  .WMMW.     kKKKKKKKKKKx     'MMMW.  "
+  echo "   .oW,     oMMMMMMMMMMMMl     cWo.   "
+  echo "           'MMMMMMMMMMMMMW.           "
+  echo "         .'NMMMMMMMMMMMMMMX'.         "
+  echo "          :XMMMMMMMMMMMMMMX:          "
+  echo "            ..............            "
+  echo "                                      "
+
+  return 0
+}
+
+stop() {
+  if y_n 'disable iptables ?: '; then disable_iptables; fi
+
+  # ---
+
+  if [ $ANONYMOUS_MODE_SECURITY = true ]; then if y_n 'stop tor ?: '; then stop_tor; fi; fi
+
+  # ---
+
+  if [ $ANONYMOUS_MODE_SECURITY = true ]; then if y_n 'disable tor ?: '; then disable_tor; fi; fi
+
+  # ---
+
+  if [ $ANONYMOUS_MODE_SECURITY = true ]; then if y_n 'disable hosts ?: '; then disable_hosts; fi; fi
+
+  # ---
+
+  if [ $ANONYMOUS_MODE_SECURITY = true ]; then if y_n 'disable resolv ?: '; then disable_resolv; fi; fi
+
+  # ---
+
+  if [ $ANONYMOUS_MODE_SECURITY = true ]; then if y_n 'disable sysctl ?: '; then disable_sysctl; fi; fi
+
+  # ---
+
+  if [ $ANONYMOUS_MODE_SECURITY = true ]; then if y_n 'change timezone ?: '; then change_timezone; fi; fi
+
+  # ---
+
+  if [ $ANONYMOUS_MODE_SECURITY = true ]; then if y_n 'change hostname ?: '; then change_hostname; fi; fi
+
+  return 0
+}
+
+start() {
+  if y_n 'enable tor ?: '; then enable_tor; fi
+  if y_n 'enable iptables ?: '; then enable_iptables; fi
+
+  # ---
+
+  if [ $ANONYMOUS_MODE_SECURITY = true ]; then if y_n 'enable hosts ?: '; then enable_hosts; fi; fi
+
+  # ---
+
+  if [ $ANONYMOUS_MODE_SECURITY = true ]; then if y_n 'enable resolv ?: '; then enable_resolv; fi; fi
+
+  # ---
+
+  if [ $ANONYMOUS_MODE_SECURITY = true ]; then if y_n 'enable sysctl ?: '; then enable_sysctl; fi; fi
+
+  # ---
+
+  if [ $ANONYMOUS_MODE_SECURITY = true ]; then if y_n 'change timezone ?: '; then change_timezone; fi; fi
+
+  # ---
+
+  if [ $ANONYMOUS_MODE_SECURITY = true ]; then if y_n 'change hostname ?: '; then change_hostname; fi; fi
+
+  return 0
+}
+
+custom() {
+  if y_n 'enable tor ?: '; then enable_tor; else disable_tor; fi
+  if y_n 'enable iptables ?: '; then enable_iptables; else disable_iptables; fi
+
+  # ---
+
+  if [ $ANONYMOUS_MODE_SECURITY = true ]; then if y_n 'change timezone ?: '; then change_timezone; fi; fi
+
+  # ---
+
+  if [ $ANONYMOUS_MODE_SECURITY = true ]; then if y_n 'change hostname ?: '; then change_hostname; fi; fi
+
+  # ---
+
+  if [ $ANONYMOUS_MODE_SECURITY = true ]; then if y_n 'enable hosts ?: '; then enable_hosts; else disable_hosts; fi; fi
+
+  # ---
+
+  if [ $ANONYMOUS_MODE_SECURITY = true ]; then if y_n 'enable resolv ?: '; then enable_resolv; else disable_resolv; fi; fi
+
+  # ---
+
+  if [ $ANONYMOUS_MODE_SECURITY = true ]; then if y_n 'enable sysctl ?: '; then enable_sysctl; else disable_sysctl; fi; fi
+
+  return 0
+}
+
+ipinfo() {
+  curl -s https://ipinfo.io/; echo
+
+  return 0
+}
+
+config() {
+  logo
+  echo TOR_UID=$TOR_UID
+  echo ANONYMOUS_MODE_CHATTR=$ANONYMOUS_MODE_CHATTR
+  echo ANONYMOUS_MODE_SECURITY=$ANONYMOUS_MODE_SECURITY
+  echo DNS_PORT=$DNS_PORT HTTP_PORT=$HTTP_PORT HTTPS_PORT=$HTTPS_PORT
+  echo ANONYMOUS_MODE_HTTPS=$ANONYMOUS_MODE_HTTPS ANONYMOUS_MODE_HTTPS=$ANONYMOUS_MODE_HTTP
+  echo TOR_VIRTUAL_ADDR=$TOR_VIRTUAL_ADDR TOR_DNS_PORT=$TOR_DNS_PORT TOR_TRANS_PORT=$TOR_TRANS_PORT TOR_HTTP_PORT=$TOR_HTTP_PORT; echo SP=$SP
+
+  return 0
+}
+
+stop_tor() {
+  systemctl stop tor
+
+  return 0
+}
+
+start_tor() {
+  systemctl start tor
+
+  return 0
+}
+
+restart_tor() {
+  systemctl restart tor
+
+  return 0
+}
+
+enable_tor() {
+  [ ! -e /etc/tor/torrc.bak ] && cp /etc/tor/torrc /etc/tor/torrc.bak
+
+  [ $ANONYMOUS_MODE_CHATTR = true ] && chattr -i /etc/tor/torrc
+  {
+    echo Sandbox 1
+    echo RunAsDaemon 1
+    #echo
+    #echo StrictNodes 1
+    #echo ExitNodes {jp}
+    #echo EntryNodes {jp}
+    #echo MiddleNodes {jp}
+    echo
+    echo UseEntryGuards 1
+    echo NumEntryGuards 16
+    echo
+    echo User $TOR_UID
+    echo DataDirectory /var/lib/tor/
+    echo
+    echo DNSPort 127.0.0.1:$TOR_DNS_PORT
+    echo AutomapHostsOnResolve 1
+    echo AutomapHostsSuffixes .onion
+    echo
+    echo TransPort 127.0.0.1:$TOR_TRANS_PORT
+    echo VirtualAddrNetwork $TOR_VIRTUAL_ADDR
+    echo
+    echo HTTPTunnelPort 127.0.0.1:$TOR_HTTP_PORT
+  } > /etc/tor/torrc && restart_tor && cat /etc/tor/torrc
+  [ $ANONYMOUS_MODE_CHATTR = true ] && chattr +i /etc/tor/torrc
+
+  return 0
+}
+
+disable_tor() {
+  [ ! -e /etc/tor/torrc.bak ] && cp /etc/tor/torrc /etc/tor/torrc.bak
+
+  [ $ANONYMOUS_MODE_CHATTR = true ] && chattr -i /etc/tor/torrc
+  > /etc/tor/torrc && stop_tor && cat /etc/tor/torrc
+
+  return 0
+}
+
+enable_hosts() {
+  [ ! -e /etc/hosts.deny.bak ] && cp /etc/hosts.deny /etc/hosts.deny.bak
+
+  [ $ANONYMOUS_MODE_CHATTR = true ] && chattr -i /etc/hosts.deny
+  {
+    echo ALL:ALL
+  } > /etc/hosts.deny && cat /etc/hosts.deny
+  [ $ANONYMOUS_MODE_CHATTR = true ] && chattr +i /etc/hosts.deny
+
+  # ---
+
+  [ ! -e /etc/hosts.allow.bak ] && cp /etc/hosts.allow /etc/hosts.allow.bak
+
+  [ $ANONYMOUS_MODE_CHATTR = true ] && chattr -i /etc/hosts.allow
+  > /etc/hosts.allow
+  [ $ANONYMOUS_MODE_CHATTR = true ] && chattr +i /etc/hosts.allow
+
+  return 0
+}
+
+disable_hosts() {
+  [ ! -e /etc/hosts.deny.bak ] && cp /etc/hosts.deny /etc/hosts.deny.bak
+
+  [ $ANONYMOUS_MODE_CHATTR = true ] && chattr -i /etc/hosts.deny
+  > /etc/hosts.deny
+
+  # ---
+
+  [ ! -e /etc/hosts.allow.bak ] && cp /etc/hosts.allow /etc/hosts.allow.bak
+
+  [ $ANONYMOUS_MODE_CHATTR = true ] && chattr -i /etc/hosts.allow
+  > /etc/hosts.allow
+
+  return 0
+}
+
+enable_resolv() {
+  [ ! -e /etc/resolv.conf.bak ] && cp /etc/resolv.conf /etc/resolv.conf.bak
+
+  [ $ANONYMOUS_MODE_CHATTR = true ] && chattr -i /etc/resolv.conf
+  {
+    echo nameserver 127.0.0.1
+  } > /etc/resolv.conf && cat /etc/resolv.conf
+  [ $ANONYMOUS_MODE_CHATTR = true ] && chattr +i /etc/resolv.conf
+
+  return 0
+}
+
+disable_resolv() {
+  [ ! -e /etc/resolv.conf.bak ] && cp /etc/resolv.conf /etc/resolv.conf.bak
+
+  [ $ANONYMOUS_MODE_CHATTR = true ] && chattr -i /etc/resolv.conf
+  {
+    echo nameserver 1.1.1.1
+  } > /etc/resolv.conf && cat /etc/resolv.conf
+
+  return 0
+}
+
+enable_sysctl() {
+  # disable_ipv6.conf
+  sysctl -w net.ipv6.conf.all.disable_ipv6=1
+  sysctl -w net.ipv6.conf.default.disable_ipv6=1
+
+  # fs_protected.conf
+  sysctl -w fs.protected_fifos=2
+  sysctl -w fs.protected_regular=2
+
+  # kexec.conf
+  sysctl -w kernel.kexec_load_disabled=1
+
+  # kptr_restrict.conf
+  sysctl -w kernel.kptr_restrict=2
+
+  # mmap_aslr.conf
+  sysctl -w vm.mmap_rnd_bits=32
+  sysctl -w vm.mmap_rnd_compat_bits=16
+
+  # pmtud.conf
+  sysctl -w net.ipv4.tcp_mtu_probing=1
+
+  # ptrace_scope.conf
+  sysctl -w kernel.yama.ptrace_scope=2
+
+  # unprivileged_bpf.conf
+  sysctl -w kernel.unprivileged_bpf_disabled=1
+
+  # unprivileged_userfaultfd.conf
+  sysctl -w vm.unprivileged_userfaultfd=0
+
+  # ---
+
+  # tcp_timestamps.conf
+  sysctl -w net.ipv4.tcp_timestamps=0
+
+  # tcp_syncookies.conf
+  sysctl -w net.ipv4.tcp_syncookies=0
+
+  # icmp_echo_ignore_all.conf
+  sysctl -w net.ipv4.icmp_echo_ignore_all=1
+
+  # rp_filter.conf
+  sysctl -w net.ipv4.conf.all.rp_filter=1
+  sysctl -w net.ipv4.conf.default.rp_filter=1
+
+  return 0
+}
+
+disable_sysctl() {
+  # disable_ipv6.conf
+  sysctl -w net.ipv6.conf.all.disable_ipv6=0
+  sysctl -w net.ipv6.conf.default.disable_ipv6=0
+
+  # fs_protected.conf
+  sysctl -w fs.protected_fifos=1
+  sysctl -w fs.protected_regular=2
+
+  # kexec.conf
+  #sysctl -w kernel.kexec_load_disabled=0
+
+  # kptr_restrict.conf
+  sysctl -w kernel.kptr_restrict=0
+
+  # mmap_aslr.conf
+  sysctl -w vm.mmap_rnd_bits=28
+  sysctl -w vm.mmap_rnd_compat_bits=8
+
+  # pmtud.conf
+  sysctl -w net.ipv4.tcp_mtu_probing=0
+
+  # ptrace_scope.conf
+  sysctl -w kernel.yama.ptrace_scope=0
+
+  # unprivileged_bpf.conf
+  #sysctl -w kernel.unprivileged_bpf_disabled=2
+
+  # unprivileged_userfaultfd.conf
+  sysctl -w vm.unprivileged_userfaultfd=1
+
+  # ---
+
+  # tcp_timestamps.conf
+  sysctl -w net.ipv4.tcp_timestamps=1
+
+  # tcp_syncookies.conf
+  sysctl -w net.ipv4.tcp_syncookies=1
+
+  # icmp_echo_ignore_all.conf
+  sysctl -w net.ipv4.icmp_echo_ignore_all=0
+
+  # rp_filter.conf
+  sysctl -w net.ipv4.conf.all.rp_filter=0
+  sysctl -w net.ipv4.conf.default.rp_filter=0
+
+  return 0
+}
+
+enable_iptables() {
+  iptables -t nat -F
+  iptables -t nat -X
+  iptables -t nat -Z
+
+  iptables -t nat -A OUTPUT -p udp --dport $DNS_PORT -j DNAT --to-destination="127.0.0.1:$TOR_DNS_PORT"
+  iptables -t nat -A OUTPUT -p tcp -d $TOR_VIRTUAL_ADDR --syn -j DNAT --to-destination="127.0.0.1:$TOR_TRANS_PORT"
+
+  iptables -t nat -A OUTPUT -m owner --uid-owner $TOR_UID -j RETURN
+  iptables -t nat -A OUTPUT -o lo -j RETURN
+
+  [ $ANONYMOUS_MODE_HTTPS = false ] && iptables -t nat -A OUTPUT -p tcp --dport $HTTPS_PORT -j RETURN
+  [ $ANONYMOUS_MODE_HTTP = false ] && iptables -t nat -A OUTPUT -p tcp --dport $HTTP_PORT -j RETURN
+
+  for sp in $SP; do
+    iptables -t nat -A OUTPUT -d $sp -j RETURN
+  done
+
+  iptables -t nat -A OUTPUT -p tcp --syn -j DNAT --to-destination="127.0.0.1:$TOR_TRANS_PORT"
+
+  echo ---
+  iptables -t nat -nvL
+
+  # ---
+
+  iptables -F
+  iptables -X
+  iptables -Z
+
+  iptables -A INPUT -m conntrack --ctstate INVALID -j DROP
+
+  iptables -A INPUT -m state --state INVALID -j DROP
+  iptables -A INPUT -m state --state ESTABLISHED -j ACCEPT
+  iptables -A INPUT -i lo -j ACCEPT
+  iptables -A INPUT -j DROP
+  iptables -P INPUT DROP
+
+  iptables -A FORWARD -j DROP
+  iptables -P FORWARD DROP
+
+  iptables -A OUTPUT -m conntrack --ctstate INVALID -j DROP
+
+  iptables -A OUTPUT -m state --state INVALID -j DROP
+  iptables -A OUTPUT -m state --state ESTABLISHED -j ACCEPT
+
+  iptables -A OUTPUT -p icmp -j DROP
+  iptables -A OUTPUT -p udp ! --dport $TOR_DNS_PORT -j DROP
+  iptables -A OUTPUT -p tcp -m state --state NEW ! --syn -j DROP
+
+  iptables -A OUTPUT -p udp -d 127.0.0.1 --dport $TOR_DNS_PORT -j ACCEPT
+  iptables -A OUTPUT -p tcp -d 127.0.0.1 --dport $TOR_TRANS_PORT --syn -j ACCEPT
+
+  iptables -A OUTPUT -p tcp -m owner --uid-owner $TOR_UID -m state --state NEW --syn -j ACCEPT
+  iptables -A OUTPUT -o lo -j ACCEPT
+
+  [ $ANONYMOUS_MODE_HTTPS = false ] && iptables -A OUTPUT -p tcp --dport $HTTPS_PORT --syn -j ACCEPT
+  [ $ANONYMOUS_MODE_HTTP = false ] && iptables -A OUTPUT -p tcp --dport $HTTP_PORT --syn -j ACCEPT
+
+  for sp in $SP; do
+    iptables -A OUTPUT -d $sp -j DROP
+  done
+
+  iptables -A OUTPUT -j DROP
+  iptables -P OUTPUT DROP
+
+  echo ---
+  iptables -nvL
+
+  # ---
+
+  ip6tables -F
+  ip6tables -X
+  ip6tables -Z
+
+  ip6tables -A INPUT -j DROP
+  ip6tables -P INPUT DROP
+
+  ip6tables -A FORWARD -j DROP
+  ip6tables -P FORWARD DROP
+
+  ip6tables -A OUTPUT -j DROP
+  ip6tables -P OUTPUT DROP
+
+  echo ---
+  ip6tables -nvL
+
+  return 0
+}
+
+disable_iptables() {
+  iptables -t nat -F
+  iptables -t nat -X
+  iptables -t nat -Z
+
+  echo ---
+  iptables -t nat -nvL
+
+  # ---
+
+  iptables -F
+  iptables -X
+  iptables -Z
+
+  iptables -P INPUT ACCEPT
+  iptables -P FORWARD ACCEPT
+  iptables -P OUTPUT ACCEPT
+
+  echo ---
+  iptables -nvL
+
+  # ---
+
+  ip6tables -t nat -F
+  ip6tables -t nat -X
+  ip6tables -t nat -Z
+
+  echo ---
+  ip6tables -t nat -nvL
+
+  # ---
+
+  ip6tables -F
+  ip6tables -X
+  ip6tables -Z
+
+  ip6tables -P INPUT ACCEPT
+  ip6tables -P FORWARD ACCEPT
+  ip6tables -P OUTPUT ACCEPT
+
+  echo ---
+  ip6tables -nvL
+
+  return 0
+}
+
+change_timezone() {
+  [ ! -e /etc/localtime.bak ] && cp /etc/localtime /etc/localtime.bak
+
+  ln -sf /usr/share/zoneinfo/UTC /etc/localtime && echo UTC
+
+  return 0
+}
+
+change_hostname() {
+  [ ! -e /etc/hosts.bak ] && cp /etc/hosts /etc/hosts.bak
+  [ ! -e /etc/hostname.bak ] && cp /etc/hostname /etc/hostname.bak
+
+  hostnamectl set-hostname $RANDOM_WORDS; cat /etc/hostname
+  echo -e "127.0.0.1\tlocalhost\n127.0.1.1\t$RANDOM_WORDS" > /etc/hosts
+
+  return 0
+}
+
+case ${1:-help} in
+  b|stop)
+    stop; ok
+
+    exit 0
+  ;;
+  s|start)
+    start; ok
+
+    exit 0
+  ;;
+  i|ipinfo)
+    ipinfo; ok
+
+    exit 0
+  ;;
+  e|custom)
+    custom; ok
+
+    exit 0
+  ;;
+  c|config)
+    config; ok
+
+    exit 0
+  ;;
+  r|restart)
+    restart_tor; ok
+
+    exit 0
+  ;;
+  *)
+    echo $0 b\|stop
+    echo $0 s\|start
+    echo $0 i\|ipinfo
+    echo $0 e\|custom
+    echo $0 c\|config
+    echo $0 r\|restart
+
+    exit 0
+  ;;
+esac
